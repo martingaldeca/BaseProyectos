@@ -1,0 +1,38 @@
+## django
+Django==3.0.4
+django-choices==1.7.1
+Pillow==7.1.1
+
+# Gunicorn
+gunicorn==20.0.4
+
+# Django jet
+django-3-jet==1.0.8
+
+# PostgreSQL
+psycopg2==2.8.3
+
+# Utils
+django-extensions==2.2.9
+django-debug-toolbar==2.2
+django-simple-history==2.9.0
+
+# Make sure static file is well configured
+whitenoise==5.1.0
+
+# used to compress static / versioning
+django_compressor==2.4
+csscompressor==0.9.5
+
+# QA
+flake8==3.7.9
+
+# Fake data for testing
+factory_boy==2.12.0
+
+# iPython
+setuptools==46.0.0
+
+# Django rest framework
+djangorestframework==3.11.0
+django-cors-headers==3.2.1

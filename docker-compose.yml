@@ -1,0 +1,146 @@
+version: '3.7'
+services:
+  backend:
+    container_name: ${PROJECT_NAME}_backend
+    hostname: backend
+    restart: always
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    command: sh post_deploy.sh
+    environment: &django_environment
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      LOGGING_ROOT_DIR: /logs
+      DEPLOY_MACHINE_IP: ${DEPLOY_MACHINE_IP}
+      NGINX_EXTERNAL_PORT: ${NGINX_EXTERNAL_PORT}
+      APP_VERSION: ${APP_VERSION}
+      POSTGRES_DB:  ${PROJECT_NAME}
+      SUPERUSER_NAME: ${SUPERUSER_NAME}
+      SUPERUSER_PASSWORD: ${SUPERUSER_PASSWORD}
+      SUPERUSER_MAIL: ${SUPERUSER_MAIL}
+    ports:
+      - "3141"
+    volumes:
+      - vol_static:/backend/static
+      - vol_media:/media
+      - vol_logs:/logs
+      - ./backend/src/.:/backend
+      - ./docker/backend/post_deploy.sh:/backend/post_deploy.sh
+    links:
+      - postgres
+    depends_on:
+      - postgres
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 50m
+        max-file: "2"
+
+  frontend_debug:
+    container_name: ${PROJECT_NAME}_frontend_debug
+    hostname: frontend_debug
+    restart: always
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+      args:
+        USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+    ports:
+      - 8081:8080
+    environment:
+      VUE_APP_API_PORT: ${NGINX_EXTERNAL_PORT}
+      VUE_APP_ENDPOINT: ${DEPLOY_MACHINE_IP}  # Local: if you work on a remote machine put that machine IP here.
+    volumes:
+      - ./frontend:/frontend/
+      - vol_node_modules:/frontend/node_modules
+      - vol_front_dist:/frontend/dist
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 50m
+        max-file: "2"
+    command: npm run serve
+
+  # This container will only compile the frontend, then it dies
+  frontend:
+    container_name: ${PROJECT_NAME}_frontend
+    hostname: frontend
+    restart: 'no'
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+      args:
+        USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+    ports:
+      - 8080
+    environment:
+      VUE_APP_API_PORT: ${NGINX_EXTERNAL_PORT}
+      VUE_APP_ENDPOINT: ${DEPLOY_MACHINE_IP}  # Local: if you work on a remote machine put that machine IP here.
+    volumes:
+      - ./frontend:/frontend/
+      - vol_node_modules:/frontend/node_modules
+      - vol_front_dist:/frontend/dist
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 50m
+        max-file: "2"
+    command: npm run build
+
+  nginx:
+    container_name: ${PROJECT_NAME}_nginx
+    restart: always
+    build:
+      context: ./docker/nginx/
+    ports:
+      - "${NGINX_EXTERNAL_PORT}:80"
+      - "${NGINX_EXTERNAL_SSL_PORT}:443"
+    volumes:
+      - vol_static:/backend/static:cached
+      - vol_media:/media:cached
+      - vol_logs:/var/log/nginx/:cached
+      - vol_front_dist:/frontend/dist:cached
+    depends_on:
+      - backend
+      - frontend
+    links:
+      - backend
+      - frontend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 50m
+        max-file: "2"
+
+  postgres:
+    image: postgres:latest
+    container_name: ${PROJECT_NAME}_postgres
+    restart: 'always'
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB:  ${PROJECT_NAME}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 50m
+        max-file: "2"
+    ports:
+      - "1900:5432"
+    volumes:
+      - vol_postgres_db:/var/lib/postgresql/data
+      - vol_logs:/logs
+
+volumes:
+  vol_static:
+    driver: local
+  vol_media:
+    driver: local
+  vol_logs:
+    driver: local
+  vol_postgres_db:
+    driver: local
+  vol_node_modules:
+  vol_front_dist:
+    driver: local

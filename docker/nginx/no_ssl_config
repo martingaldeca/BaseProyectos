@@ -1,0 +1,49 @@
+# Admin
+server {
+    listen     *:80;
+    server_name admin.localhost;
+    charset     utf-8;
+
+    location / {
+        proxy_pass http://backend:3141;
+        proxy_redirect    off;
+
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /static {
+        alias /backend/static/;
+    }
+
+    location /media {
+        alias /backend/media/;
+    }
+
+}
+
+# Frontend
+server {
+    listen     *:80;
+    server_name localhost;
+    charset     utf-8;
+
+    root /frontend/dist/front;
+
+    location / {
+        try_files   $uri $uri/ /index.html;
+    }
+
+    # Avoid favicon.ico log
+    location /favicon.ico {
+        log_not_found off;
+    }
+
+    # Cache configuration
+    location ~* \.(?:ico|css|js|gif|jpe?g|png|svg|ttf)$ {
+        expires max;
+        add_header Pragma public;
+        add_header Cache-Control "public, must-revalidate, proxy-revalidate";
+    }
+}
